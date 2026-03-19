@@ -1,0 +1,5 @@
+// Placeholder Animation Schema
+model Animation {
+  id String @id @default(uuid())
+  // Animation fields will be added later
+}

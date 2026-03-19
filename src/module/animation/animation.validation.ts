@@ -1,0 +1,2 @@
+// Placeholder: Animation Validation
+export {};

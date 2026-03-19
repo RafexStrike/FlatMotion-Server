@@ -1,0 +1,20 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Import schema files
+// @NOTE: This is a placeholder structure
+// Models will be defined in separate schema files:
+// - user.prisma
+// - auth.prisma
+// - project.prisma
+// - animation.prisma
+// - enums.prisma

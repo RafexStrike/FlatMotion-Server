@@ -1,0 +1,6 @@
+// Placeholder Enums
+enum Status {
+  ACTIVE
+  INACTIVE
+  PENDING
+}

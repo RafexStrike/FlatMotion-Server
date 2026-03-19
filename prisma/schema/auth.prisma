@@ -1,0 +1,5 @@
+// Placeholder Auth Schema
+model Auth {
+  id String @id @default(uuid())
+  // Auth fields will be added later
+}

@@ -1,0 +1,2 @@
+// Placeholder: Admin Controller
+export {};

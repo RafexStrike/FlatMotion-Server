@@ -1,0 +1,5 @@
+// Placeholder User Schema
+model User {
+  id String @id @default(uuid())
+  // User fields will be added later
+}

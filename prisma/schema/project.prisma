@@ -1,0 +1,5 @@
+// Placeholder Project Schema
+model Project {
+  id String @id @default(uuid())
+  // Project fields will be added later
+}
