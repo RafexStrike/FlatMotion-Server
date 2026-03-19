@@ -1,3 +1,4 @@
+// File: src/module/auth/auth.route.ts
 import { Router } from 'express';
 
 const authRouter = Router();

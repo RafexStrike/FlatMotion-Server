@@ -1,3 +1,4 @@
+// File: src/utils/sendResponse.ts
 import { Response } from 'express';
 
 interface SendResponseData<T> {

@@ -1,3 +1,4 @@
+// File: src/errorHelpers/globalErrorHandler.ts
 import { Request, Response, NextFunction } from 'express';
 
 interface ErrorResponse {

@@ -10,11 +10,74 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Import schema files
-// @NOTE: This is a placeholder structure
-// Models will be defined in separate schema files:
-// - user.prisma
-// - auth.prisma
+// Better Auth Models - Required for authentication
+model user {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified Boolean         @default(false)
+  image         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  // Relations
+  accounts      account[]
+  sessions      session[]
+}
+
+model account {
+  id                String   @id @default(cuid())
+  accountId         String
+  providerId        String
+  userId            String
+  type              String?
+  provider          String?
+  providerAccountId String?
+  refreshToken      String?
+  accessToken       String?
+  expiresAt         Int?
+  tokenType         String?
+  scope             String?
+  idToken           String?
+  sessionState      String?
+  password          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, providerAccountId])
+  @@index([userId])
+}
+
+model session {
+  id            String   @id @default(cuid())
+  expiresAt     DateTime
+  token         String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  ipAddress     String?
+  userAgent     String?
+  userId        String
+  
+  // Relations
+  user          user   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model verification {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+  
+  @@unique([identifier, token])
+}
+
+// Import schema files for other models
+// @NOTE: Module-specific models can be added here
 // - project.prisma
 // - animation.prisma
-// - enums.prisma
+// - admin.prisma (if needed)
