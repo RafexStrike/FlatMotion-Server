@@ -5,6 +5,7 @@ import authRouter from '../module/auth/auth.route';
 import projectRouter from '../module/project/project.route';
 import animationRouter from '../module/animation/animation.route';
 import adminRouter from '../module/admin/admin.route';
+import aiRouter from '../module/ai/ai.route';
 
 const routes = Router();
 
@@ -14,6 +15,7 @@ routes.use('/auth', authRouter);
 routes.use('/projects', projectRouter);
 routes.use('/animations', animationRouter);
 routes.use('/admin', adminRouter);
+routes.use('/ai', aiRouter);
 
 // Health check endpoint
 routes.get('/health', (_req, res) => {
