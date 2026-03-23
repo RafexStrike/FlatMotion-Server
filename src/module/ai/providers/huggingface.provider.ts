@@ -1,5 +1,6 @@
 import { BaseAIProvider } from './base.provider';
 import { GenerateTextRequest, GenerateTextResponse } from '../ai.interface';
+import { InferenceClient } from '@huggingface/inference';
 
 export class HuggingFaceProvider extends BaseAIProvider {
   name = 'huggingface';
@@ -11,47 +12,33 @@ export class HuggingFaceProvider extends BaseAIProvider {
       throw new Error('API key is required for Hugging Face provider');
     }
 
-    // Using the chat completions API compatibility if possible, or standard endpoint
-    const url = `https://api-inference.huggingface.co/models/${model}`;
+    const client = new InferenceClient(apiKey);
 
-    const payload = {
-      inputs: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt,
-      parameters: {
-        return_full_text: false,
-        temperature: temperature || 0.7,
-        max_new_tokens: 500,
-      },
-    };
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Hugging Face API error: ${response.status} - ${errorText}`);
+    const messages = [];
+    if (systemPrompt) {
+      messages.push({ role: 'system', content: systemPrompt });
     }
+    messages.push({ role: 'user', content: prompt });
 
-    const data = await response.json();
-    let text = '';
+    try {
+      const chatCompletion = await client.chatCompletion({
+        model: model,
+        messages: messages as any,
+        // temperature: temperature || 0.7,
+        // max_tokens: 500,
+      });
 
-    if (Array.isArray(data) && data[0]?.generated_text) {
-      text = data[0].generated_text;
-    } else {
-      text = JSON.stringify(data); // Fallback
+      const text = chatCompletion.choices[0]?.message?.content || '';
+
+      return {
+        provider: this.name,
+        model,
+        text,
+        rawResponse: chatCompletion,
+        createdAt: new Date(),
+      };
+    } catch (error: any) {
+      throw new Error(`Hugging Face API error: ${error.message}`);
     }
-
-    return {
-      provider: this.name,
-      model,
-      text,
-      rawResponse: data,
-      createdAt: new Date(),
-    };
   }
 }

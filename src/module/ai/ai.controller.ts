@@ -2,16 +2,16 @@ import { Request, Response } from 'express';
 import { aiService } from './ai.service';
 import { GenerateTextRequest } from './ai.interface';
 
-export const getProviders = (req: Request, res: Response) => {
+export const getProviders = (_req: Request, res: Response): any => {
   try {
     const catalog = aiService.getProviderCatalog();
-    res.status(200).json({ success: true, data: catalog });
+    return res.status(200).json({ success: true, data: catalog });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const getModels = (req: Request, res: Response) => {
+export const getModels = (req: Request, res: Response): any => {
   try {
     const provider = req.query.provider as string;
     
@@ -20,7 +20,7 @@ export const getModels = (req: Request, res: Response) => {
     }
 
     const models = aiService.getModelsForProvider(provider);
-    res.status(200).json({ success: true, data: models });
+    return res.status(200).json({ success: true, data: models });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -5,9 +5,8 @@ export interface ModelOption {
 
 export const MODEL_CATALOG: Record<string, ModelOption[]> = {
   huggingface: [
-    { id: 'mistralai/Mistral-7B-Instruct-v0.2', label: 'Mistral 7B Instruct v0.2' },
-    { id: 'HuggingFaceH4/zephyr-7b-beta', label: 'Zephyr 7B Beta' },
-    { id: 'google/gemma-7b-it', label: 'Gemma 7B IT' }
+    { id: 'mistralai/Mistral-7B-Instruct-v0.2:featherless-ai', label: 'Mistral 7B Instruct v0.2' },
+    { id: 'meta-llama/Meta-Llama-3-8B-Instruct', label: 'Meta LLaMA 3 8B Instruct' }
   ],
   gemini: [
     { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },

@@ -39,7 +39,7 @@ export class GroqProvider extends BaseAIProvider {
       throw new Error(`Groq API error: ${response.status} - ${errorText}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as any;
     const text = data.choices?.[0]?.message?.content || '';
 
     return {

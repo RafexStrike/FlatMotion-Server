@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { SUPPORTED_PROVIDERS, MODEL_CATALOG } from './constants';
 
-export const validateChatRequest = (req: Request, res: Response, next: NextFunction) => {
+export const validateChatRequest = (req: Request, res: Response, next: NextFunction): any => {
   const { prompt, provider, model, apiKey } = req.body;
 
   if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
