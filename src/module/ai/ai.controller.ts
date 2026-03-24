@@ -1,3 +1,4 @@
+// server/src/module/ai/ai.controller.ts
 import { Request, Response } from 'express';
 import { aiService } from './ai.service';
 import { GenerateTextRequest } from './ai.interface';

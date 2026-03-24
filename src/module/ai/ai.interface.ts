@@ -1,3 +1,4 @@
+// server/src/module/ai/ai.interface.ts
 export interface GenerateTextRequest {
   prompt: string;
   provider: string;

@@ -1,3 +1,4 @@
+// server/src/module/ai/ai.route.ts
 import { Router } from 'express';
 import { getProviders, getModels, generateChat } from './ai.controller';
 import { validateChatRequest } from './ai.validation';
