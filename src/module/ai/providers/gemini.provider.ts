@@ -1,3 +1,4 @@
+// src/module/ai/providers/gemini.provider.ts
 import { BaseAIProvider } from './base.provider';
 import { GenerateTextRequest, GenerateTextResponse } from '../ai.interface';
 
