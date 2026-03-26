@@ -1,3 +1,4 @@
+// server/src/module/ai/providers/base.provider.ts
 import { GenerateTextRequest, GenerateTextResponse } from '../ai.interface';
 
 export abstract class BaseAIProvider {

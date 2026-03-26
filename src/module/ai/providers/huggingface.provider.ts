@@ -1,3 +1,4 @@
+// server/src/module/ai/providers/huggingface.provider.ts
 import { BaseAIProvider } from './base.provider';
 import { GenerateTextRequest, GenerateTextResponse } from '../ai.interface';
 import { InferenceClient } from '@huggingface/inference';
