@@ -23,6 +23,8 @@ model user {
   // Relations
   accounts      account[]
   sessions      session[]
+  projects      project[]
+  animationJobs animationJob[]
 }
 
 model account {
@@ -76,8 +78,42 @@ model verification {
   @@unique([identifier, token])
 }
 
-// Import schema files for other models
-// @NOTE: Module-specific models can be added here
-// - project.prisma
-// - animation.prisma
-// - admin.prisma (if needed)
+// Project Model - User's animation projects
+model project {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  userId      String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user        user           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  animations  animationJob[]
+
+  @@index([userId])
+}
+
+// Animation Job Model - Tracks the full generation pipeline
+model animationJob {
+  id             String    @id @default(cuid())
+  userId         String
+  projectId      String
+  prompt         String
+  provider       String
+  model          String
+  status         String    @default("pending")
+  generatedCode  String?
+  videoUrl       String?
+  cloudinaryId   String?
+  errorMessage   String?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user           user      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project        project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([status])
+}

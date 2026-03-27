@@ -7,7 +7,7 @@ export class HuggingFaceProvider extends BaseAIProvider {
   name = 'huggingface';
 
   async generateText(request: GenerateTextRequest): Promise<GenerateTextResponse> {
-    const { prompt, model, apiKey, temperature, systemPrompt } = request;
+    const { prompt, model, apiKey, temperature: _temperature, systemPrompt } = request;
 
     if (!apiKey) {
       throw new Error('API key is required for Hugging Face provider');
