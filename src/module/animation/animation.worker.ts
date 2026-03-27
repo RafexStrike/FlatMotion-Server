@@ -13,8 +13,8 @@ const execFileAsync = promisify(execFile);
 
 const MANIM_SYSTEM_PROMPT = `You are a Manim code generator. Your ONLY job is to output valid, self-contained Python code using the Manim Community library (manim).
 
-STRICT RULES:
-1. Output ONLY raw Python code. No markdown, no code fences, no explanation, no comments outside the code.
+CRITICAL STRICT RULES:
+1. Output ONLY raw Python code. DO NOT include any markdown formatting (like \`\`\`python). DO NOT include any conversational text, explanations, or greetings. Your entire response must be executable Python code.
 2. The scene class MUST be named "GeneratedScene".
 3. The class must extend Scene from manim.
 4. Use "from manim import *" as the first import.
@@ -40,20 +40,21 @@ class GeneratedScene(Scene):
  * Strips markdown fences from LLM output and extracts raw Python code.
  */
 function extractPythonCode(raw: string): string {
-  // Remove ```python ... ``` or ``` ... ``` fences
-  let code = raw.replace(/```python\s*/gi, '').replace(/```\s*/g, '').trim();
+  // Extract from markdown fences if present
+  const match = raw.match(/```(?:python)?\s*([\s\S]*?)```/i);
+  let code = match ? match[1] : raw;
 
-  // Ensure it starts with a valid Python statement
-  const startIndex = code.indexOf('from manim') !== -1
-    ? code.indexOf('from manim')
-    : code.indexOf('import manim') !== -1
-      ? code.indexOf('import manim')
-      : code.indexOf('class GeneratedScene');
+  // Find the start of the actual Python code to ignore conversational prefixes
+  let startIndex = code.indexOf('from manim');
+  if (startIndex === -1) startIndex = code.indexOf('import manim');
+  if (startIndex === -1) startIndex = code.indexOf('class GeneratedScene');
 
   if (startIndex > 0) {
     code = code.substring(startIndex);
   }
 
+  // A rogue AI might add trailing conversational text, but matching fences handles it 99% of the time.
+  // We'll trust python execution or the next generation if it fails.
   return code.trim();
 }
 

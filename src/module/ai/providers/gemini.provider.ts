@@ -6,7 +6,7 @@ export class GeminiProvider extends BaseAIProvider {
   name = 'gemini';
 
   async generateText(request: GenerateTextRequest): Promise<GenerateTextResponse> {
-    const { prompt, model, apiKey, temperature } = request;
+    const { prompt, model, apiKey, temperature, systemPrompt } = request;
 
     if (!apiKey) {
       throw new Error('API key is required for Gemini provider');
@@ -14,7 +14,7 @@ export class GeminiProvider extends BaseAIProvider {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    const payload = {
+    const payload: any = {
       contents: [{
         parts: [{ text: prompt }]
       }],
@@ -22,6 +22,12 @@ export class GeminiProvider extends BaseAIProvider {
         temperature: temperature || 0.7,
       }
     };
+
+    if (systemPrompt) {
+      payload.systemInstruction = {
+        parts: [{ text: systemPrompt }]
+      };
+    }
 
     const response = await fetch(url, {
       method: 'POST',
