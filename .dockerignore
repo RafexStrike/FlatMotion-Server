@@ -1,0 +1,14 @@
+# .dockerignore
+# Excludes unnecessary files and directories from the Docker build context
+# to reduce image size and prevent copying local environment configurations.
+
+node_modules
+dist
+.env
+.env.local
+logs
+tmp files
+.git
+.gitignore
+.venv
+*.log

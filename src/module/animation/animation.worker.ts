@@ -1,13 +1,16 @@
 // server/src/module/animation/animation.worker.ts
+// Handles background animation job processing:
+// - calls LLM via AI provider
+// - writes Python file to OS temporary directory
+// - executes Manim via spawn avoiding maxBuffer limits (600s timeout)
+// - uploads video to Cloudinary
 import * as fs from 'fs';
 import * as path from 'path';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
+import * as os from 'os';
+import { spawn } from 'child_process';
 import { aiService } from '../ai/ai.service';
 import { uploadVideo } from '../../lib/cloudinary';
 import { updateJob } from './animation.service';
-
-const execFileAsync = promisify(execFile);
 
 // ─── Manim System Prompt ──────────────────────────────────────────────────────
 
@@ -77,8 +80,8 @@ export async function processAnimationJob(
   console.log(`[Worker] Prompt: ${prompt.substring(0, 100)}...`);
   console.log(`${'═'.repeat(60)}`);
 
-  // Temp file paths
-  const tmpDir = path.join('/tmp', `manim-job-${jobId}`);
+  // Temp file paths - Using OS temp directory
+  const tmpDir = path.join(os.tmpdir(), `manim-job-${jobId}`);
   const pyFile = path.join(tmpDir, 'scene.py');
   let videoPath: string | null = null;
 
@@ -122,14 +125,44 @@ export async function processAnimationJob(
     console.log(`[Worker][${jobId}] Status → rendering`);
     console.log(`[Worker][${jobId}] Running: python3 -m manim render -ql ${pyFile} GeneratedScene`);
 
-    const { stdout, stderr } = await execFileAsync(
-      'python3',
-      ['-m', 'manim', 'render', '-ql', '--media_dir', tmpDir, pyFile, 'GeneratedScene'],
-      { timeout: 120_000 }  // 2 min timeout
-    );
+    console.log(`[Worker][${jobId}] Starting Manim process using spawn...`);
+    await new Promise<void>((resolve, reject) => {
+      // Use spawn to avoid maxBuffer limits on heavy stdout logs
+      const child = spawn('python3', [
+        '-m', 'manim', 'render', '-ql', '--media_dir', tmpDir, pyFile, 'GeneratedScene'
+      ], {
+        timeout: 600_000 // 10 min timeout for Render Free tier
+      });
 
-    if (stdout) console.log(`[Worker][${jobId}] Manim stdout:\n${stdout}`);
-    if (stderr) console.log(`[Worker][${jobId}] Manim stderr:\n${stderr}`);
+      child.stdout.on('data', (data) => {
+        const text = data.toString();
+        console.log(`[Worker][${jobId}] STDOUT: ${text.trim()}`);
+      });
+
+      child.stderr.on('data', (data) => {
+        const text = data.toString();
+        // Console error might be too noisy for standard Manim progress, but keeping it
+        // logged ensures we capture all debug info.
+        console.error(`[Worker][${jobId}] STDERR: ${text.trim()}`);
+      });
+
+      child.on('close', (code) => {
+        console.log(`[Worker][${jobId}] Manim process exited with code ${code}`);
+        if (code === 0) {
+          resolve();
+        } else {
+          // Sometimes Manim returns non-zero even if video is generated, but strictly we should error
+          reject(new Error(`Manim render failed with code ${code}.`));
+        }
+      });
+
+      child.on('error', (spawnErr) => {
+        console.error(`[Worker][${jobId}] Manim process error:`, spawnErr);
+        reject(spawnErr);
+      });
+    });
+
+    console.log(`[Worker][${jobId}] Manim execution completed successfully.`);
 
     // Locate the output mp4 — Manim places it under media/videos/scene/480p15/
     videoPath = findMp4File(tmpDir);
