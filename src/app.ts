@@ -24,7 +24,7 @@ app.use((req, res, next) => {
     console.log(`[Backend Debug] Cookies Received:`, req.headers.cookie);
     
     const originalSend = res.send;
-    res.send = function (body) {
+    res.send = function (_body) {
       console.log(`[Backend Debug] Response for ${req.url}:`, {
         status: res.statusCode,
         setCookie: res.get('Set-Cookie'),
