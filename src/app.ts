@@ -17,6 +17,26 @@ app.use(cors({
   credentials: true,
 }));
 
+app.use((req, res, next) => {
+  if (req.url.includes('/api/auth')) {
+    console.log(`[Backend Debug] ${req.method} ${req.url}`);
+    console.log(`[Backend Debug] Origin: ${req.headers.origin}`);
+    console.log(`[Backend Debug] Cookies Received:`, req.headers.cookie);
+    
+    const originalSend = res.send;
+    res.send = function (body) {
+      console.log(`[Backend Debug] Response for ${req.url}:`, {
+        status: res.statusCode,
+        setCookie: res.get('Set-Cookie'),
+        allowOrigin: res.get('Access-Control-Allow-Origin'),
+        allowCredentials: res.get('Access-Control-Allow-Credentials')
+      });
+      return originalSend.apply(res, arguments as any);
+    };
+  }
+  next();
+});
+
 // Better Auth Handler - Mount BEFORE other routes
 app.use("/api/auth", toNodeHandler(auth));
 

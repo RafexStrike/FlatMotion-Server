@@ -45,4 +45,14 @@ export const auth = betterAuth({
   plugins: [
     bearer(),
   ],
+  onSessionCreated: async (session: any) => {
+    console.log("[Better-Auth Hook] Session Created:", {
+      id: session.session.id,
+      userId: session.session.userId,
+      expiresAt: session.session.expiresAt
+    });
+  },
+  onSessionDeleted: async (session: any) => {
+    console.log("[Better-Auth Hook] Session Deleted:", session.session?.id || session.id);
+  },
 });
