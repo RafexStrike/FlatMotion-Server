@@ -13,7 +13,7 @@ const app: Express = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
-  origin: process.env.TRUSTED_CLIENT_ORIGIN?.split(",") || ["http://localhost:3000"],
+  origin: (process.env.TRUSTED_CLIENT_ORIGIN?.split(",") || ["http://localhost:3000"]).map(o => o.trim()),
   credentials: true,
 }));
 

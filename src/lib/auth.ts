@@ -1,7 +1,7 @@
-// File: src/lib/auth.ts
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
+import { bearer } from "better-auth/plugins";
 
 const trustedOrigins = process.env.TRUSTED_CLIENT_ORIGIN?.split(",") || [];
 
@@ -33,4 +33,16 @@ export const auth = betterAuth({
   },
 
   trustedOrigins,
+  cookies: {
+    sessionToken: {
+      attributes: {
+        httpOnly: true,
+        secure: true,       // REQUIRED for cross-site
+        sameSite: "none",   // REQUIRED for cross-site
+      },
+    },
+  },
+  plugins: [
+    bearer(),
+  ],
 });
