@@ -9,8 +9,10 @@ if (trustedOrigins.length === 0) {
   throw new Error("TRUSTED_CLIENT_ORIGIN is not set");
 }
 
-if (!process.env.BETTER_AUTH_URL) {
-  throw new Error("BETTER_AUTH_URL is not set");
+const baseURL = process.env.BETTER_AUTH_URL?.split(",")[0].trim() || "";
+
+if (!baseURL) {
+  throw new Error("BETTER_AUTH_URL is not set or invalid");
 }
 
 export const auth = betterAuth({
@@ -18,7 +20,7 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL,
   basePath: "/api/auth",
 
   emailAndPassword: {
