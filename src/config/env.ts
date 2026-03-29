@@ -21,6 +21,11 @@ const config = {
   groqApiKey: process.env.GROQ_API_KEY,
   openrouterApiKey: process.env.OPENROUTER_API_KEY,
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+
+  // SSLCommerz Payment Gateway (Sandbox)
+  sslcStoreId: process.env.SSLC_STORE_ID || '',
+  sslcStorePass: process.env.SSLC_STORE_PASS || '',
+  sslcIsLive: process.env.SSLC_IS_LIVE === 'true',
 };
 
 export default config;

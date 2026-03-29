@@ -25,6 +25,7 @@ model user {
   sessions      session[]
   projects      project[]
   animationJobs animationJob[]
+  donations     donation[]
 }
 
 model account {
@@ -115,5 +116,26 @@ model animationJob {
 
   @@index([userId])
   @@index([projectId])
+  @@index([status])
+}
+
+// Donation Model - Tracks SSLCommerz sandbox donation records
+model donation {
+  id        String   @id @default(cuid())
+  userId    String?
+  name      String
+  email     String
+  amount    Float
+  currency  String   @default("BDT")
+  tranId    String   @unique
+  status    String   @default("pending")
+  valId     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      user?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tranId])
   @@index([status])
 }
