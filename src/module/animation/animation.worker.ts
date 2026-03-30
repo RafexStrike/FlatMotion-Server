@@ -3,7 +3,10 @@
 // - calls LLM via AI provider
 // - writes Python file to OS temporary directory
 // - executes Manim via spawn avoiding maxBuffer limits (600s timeout)
+// - auto-retries up to MAX_RETRIES on render failure (sends errors back to AI)
 // - uploads video to Cloudinary
+
+const MAX_RETRIES = 10;
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -27,6 +30,42 @@ CRITICAL STRICT RULES:
 8. The construct method must be self-contained.
 9. Keep the code simple and reliable — it must render without errors.
 
+MANIM API RULES (VERY IMPORTANT — violations WILL cause render failures):
+
+OPACITY:
+- Do NOT use "opacity" as a constructor kwarg. Use "fill_opacity" or "stroke_opacity" instead.
+  WRONG: Dot(opacity=0.3)
+  RIGHT: Dot(fill_opacity=0.3)
+- To change opacity after creation, use .set_opacity(), .set_fill(opacity=x), or .set_stroke(opacity=x).
+
+AXES & NUMBER LINES:
+- Do NOT use "numbers_with_elongated_tick" — it does not exist.
+- Keep axis configs minimal: x_range=[min, max, step], y_range=[min, max, step], axis_config={"color": GRAY}.
+- Do NOT use axes.get_x_axis().get_tick_labels() or axes.get_y_axis().get_tick_labels() — they are deprecated/broken.
+- If you need axis labels, use axes.get_axis_labels(x_label="x", y_label="y") only.
+- For plotting functions, use axes.plot(lambda x: ...) instead of axes.get_graph().
+
+FRAME DIMENSIONS:
+- Do NOT use FRAME_WIDTH or FRAME_HEIGHT as standalone constants — they don't exist.
+  WRONG: x_range=[-FRAME_WIDTH/2, FRAME_WIDTH/2]
+  RIGHT: x_range=[-config.frame_width/2, config.frame_width/2]
+  Or simply use fixed numeric values like x_range=[-7, 7, 1].
+
+ANIMATION GROUPS:
+- AnimationGroup does NOT have .set_start_time(). Do NOT call it.
+- For staggered animations, use LaggedStart(*animations, lag_ratio=0.2).
+- For sequential animations, use Succession(anim1, anim2, ...).
+
+PERFORMANCE:
+- Avoid creating thousands of Mobjects (e.g., a dense grid of Dots). This causes extreme slowness or crashes.
+  Instead of per-pixel dot grids, use ParametricFunction, FunctionGraph, or a small number of objects.
+- Keep scenes simple: prefer fewer, larger geometric objects over many tiny ones.
+
+UPDATERS:
+- For updater-based continuous animations, use .add_updater() with self.wait(duration).
+- Use color constants like BLUE, RED, GREEN, YELLOW, PURPLE, WHITE, GRAY, BLACK directly.
+- For color interpolation, use interpolate_color(color1, color2, alpha).
+
 EXAMPLE OUTPUT FORMAT:
 from manim import *
 
@@ -36,6 +75,46 @@ class GeneratedScene(Scene):
         self.play(Create(circle))
         self.wait(1)
 `;
+
+// ─── Retry Prompt ─────────────────────────────────────────────────────────────
+
+/**
+ * Builds a retry prompt that includes the current failed code, the current error,
+ * and all previously encountered errors so the AI doesn't repeat the same mistakes.
+ */
+function buildRetryPrompt(
+  currentCode: string,
+  currentError: string,
+  previousErrors: string[],
+  attemptNumber: number
+): string {
+  let previousErrorsSection = '';
+  if (previousErrors.length > 0) {
+    previousErrorsSection = `\n\nPREVIOUS ERRORS THAT ALREADY OCCURRED (do NOT repeat these mistakes):\n${previousErrors.map((e, i) => `${i + 1}. ${e}`).join('\n')}\n`;
+  }
+
+  return `The following Manim Python code failed to render (attempt ${attemptNumber}). Fix the code so it renders successfully.
+
+FAILED CODE:
+${currentCode}
+
+CURRENT ERROR:
+${currentError}${previousErrorsSection}
+RULES:
+- Output ONLY the fixed Python code. No explanations, no markdown.
+- The class must still be named "GeneratedScene".
+- Use "from manim import *" as the first import.
+- Do NOT use "opacity" as a constructor kwarg. Use "fill_opacity" or "stroke_opacity" instead.
+- Do NOT use "numbers_with_elongated_tick" — it does not exist.
+- Do NOT use FRAME_WIDTH or FRAME_HEIGHT. Use config.frame_width / config.frame_height or fixed numeric values.
+- Do NOT use axes.get_x_axis().get_tick_labels() — it is deprecated. Use axes.get_axis_labels() instead.
+- Do NOT call .set_start_time() on AnimationGroup — it doesn't exist. Use LaggedStart or Succession instead.
+- Do NOT use axes.get_graph() — use axes.plot() instead.
+- Keep axis configs minimal and avoid unknown kwargs.
+- Avoid creating thousands of tiny Mobjects (dots in a dense grid). Use ParametricFunction or FunctionGraph instead.
+- The animation must be at most 10 seconds.
+- Make sure the code renders without any errors.`;
+}
 
 // ─── Code Extraction ──────────────────────────────────────────────────────────
 
@@ -56,9 +135,130 @@ function extractPythonCode(raw: string): string {
     code = code.substring(startIndex);
   }
 
-  // A rogue AI might add trailing conversational text, but matching fences handles it 99% of the time.
-  // We'll trust python execution or the next generation if it fails.
   return code.trim();
+}
+
+// ─── Manim Error Parsing ──────────────────────────────────────────────────────
+
+/**
+ * Extracts a meaningful Python error from Manim stderr output.
+ * Returns the last error line (e.g., "TypeError: Mobject.__init__() got an unexpected keyword argument 'opacity'")
+ */
+function extractPythonError(stderr: string): string | null {
+  // Look for common Python error patterns at the end of the traceback
+  const lines = stderr.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Check for "No module named" which appears on a single line without standard traceback
+  for (const line of lines) {
+    if (line.includes('No module named')) {
+      return `ModuleNotFoundError: ${line}`;
+    }
+  }
+
+  // Search from the end for typical Python error lines
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (
+      line.match(/^(TypeError|ValueError|AttributeError|NameError|ImportError|SyntaxError|RuntimeError|KeyError|IndexError|ZeroDivisionError|ModuleNotFoundError|RecursionError|MemoryError|OverflowError):/) ||
+      line.match(/^manim\..*Error:/)
+    ) {
+      return line;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Converts a technical Manim error into a user-friendly message.
+ */
+function makeUserFriendlyError(pythonError: string | null, retried: boolean): string {
+  const retryNote = retried
+    ? ' We attempted to automatically fix the issue, but it persisted.'
+    : '';
+
+  if (!pythonError) {
+    return `We couldn't render this animation. The rendering engine encountered an unexpected issue.${retryNote} Please try rephrasing your prompt or simplifying the description.`;
+  }
+
+  if (pythonError.includes('unexpected keyword argument')) {
+    return `We couldn't render this animation. The AI generated code with features not supported by our rendering engine.${retryNote} Please try a simpler prompt or rephrase your description.`;
+  }
+
+  if (pythonError.includes('MemoryError') || pythonError.includes('RecursionError')) {
+    return `We couldn't render this animation — it was too complex for our rendering engine to handle.${retryNote} Please try a simpler animation with fewer elements.`;
+  }
+
+  if (pythonError.includes('No module named manim')) {
+    return `Our animation rendering engine is temporarily unavailable due to a server configuration issue. This is not related to your prompt — please try again later or contact support.`;
+  }
+
+  if (pythonError.includes('ModuleNotFoundError') || pythonError.includes('ImportError')) {
+    return `We couldn't render this animation due to a missing dependency on our server.${retryNote} Please try a different prompt that uses basic shapes and animations.`;
+  }
+
+  if (pythonError.includes('SyntaxError')) {
+    return `We couldn't render this animation. The AI generated code with a syntax error.${retryNote} Please try rephrasing your prompt.`;
+  }
+
+  if (pythonError.includes('AttributeError')) {
+    return `We couldn't render this animation. The AI used a feature that isn't available in our rendering engine.${retryNote} Please try a simpler description.`;
+  }
+
+  return `We couldn't render this animation. Our rendering engine encountered an error while processing the AI-generated code.${retryNote} Please try rephrasing your prompt or using a simpler description.`;
+}
+
+// ─── Manim Render ─────────────────────────────────────────────────────────────
+
+interface RenderResult {
+  success: boolean;
+  stderr: string;
+  pythonError: string | null;
+}
+
+/**
+ * Runs Manim render and returns success/failure + captured stderr.
+ */
+async function runManimRender(
+  jobId: string,
+  pyFile: string,
+  tmpDir: string
+): Promise<RenderResult> {
+  return new Promise<RenderResult>((resolve) => {
+    let stderrBuffer = '';
+
+    const child = spawn('python3', [
+      '-m', 'manim', 'render', '-ql', '--media_dir', tmpDir, pyFile, 'GeneratedScene'
+    ], {
+      timeout: 600_000 // 10 min timeout for Render Free tier
+    });
+
+    child.stdout.on('data', (data) => {
+      const text = data.toString();
+      console.log(`[Worker][${jobId}] STDOUT: ${text.trim()}`);
+    });
+
+    child.stderr.on('data', (data) => {
+      const text = data.toString();
+      stderrBuffer += text;
+      console.error(`[Worker][${jobId}] STDERR: ${text.trim()}`);
+    });
+
+    child.on('close', (code) => {
+      console.log(`[Worker][${jobId}] Manim process exited with code ${code}`);
+      if (code === 0) {
+        resolve({ success: true, stderr: stderrBuffer, pythonError: null });
+      } else {
+        const pythonError = extractPythonError(stderrBuffer);
+        resolve({ success: false, stderr: stderrBuffer, pythonError });
+      }
+    });
+
+    child.on('error', (spawnErr) => {
+      console.error(`[Worker][${jobId}] Manim process error:`, spawnErr);
+      resolve({ success: false, stderr: spawnErr.message, pythonError: null });
+    });
+  });
 }
 
 // ─── Worker Pipeline ──────────────────────────────────────────────────────────
@@ -95,18 +295,20 @@ export async function processAnimationJob(
     console.log(`[Worker][${jobId}] Status → generating_code`);
     console.log(`[Worker][${jobId}] Calling AI provider...`);
 
+    const resolvedKey = apiKey ?? getProviderApiKey(provider);
+
     const aiResponse = await aiService.generateText({
       prompt,
       provider,
       model,
-      apiKey: apiKey ?? getProviderApiKey(provider),
+      apiKey: resolvedKey,
       systemPrompt: MANIM_SYSTEM_PROMPT,
       temperature: 0.3,
     });
 
     console.log(`[Worker][${jobId}] AI response received (${aiResponse.text.length} chars)`);
 
-    const generatedCode = extractPythonCode(aiResponse.text);
+    let generatedCode = extractPythonCode(aiResponse.text);
 
     if (!generatedCode || !generatedCode.includes('class GeneratedScene')) {
       throw new Error('AI did not return a valid GeneratedScene class. Raw output:\n' + aiResponse.text.substring(0, 500));
@@ -120,47 +322,94 @@ export async function processAnimationJob(
     fs.writeFileSync(pyFile, generatedCode, 'utf-8');
     console.log(`[Worker][${jobId}] Python file written: ${pyFile}`);
 
-    // ── Step 4: Render with Manim ────────────────────────────────────────────
+    // ── Step 4: Render with Manim (with up to MAX_RETRIES auto-retries) ───────
     await updateJob(jobId, { status: 'rendering' });
     console.log(`[Worker][${jobId}] Status → rendering`);
     console.log(`[Worker][${jobId}] Running: python3 -m manim render -ql ${pyFile} GeneratedScene`);
 
-    console.log(`[Worker][${jobId}] Starting Manim process using spawn...`);
-    await new Promise<void>((resolve, reject) => {
-      // Use spawn to avoid maxBuffer limits on heavy stdout logs
-      const child = spawn('python3', [
-        '-m', 'manim', 'render', '-ql', '--media_dir', tmpDir, pyFile, 'GeneratedScene'
-      ], {
-        timeout: 600_000 // 10 min timeout for Render Free tier
-      });
+    let renderResult = await runManimRender(jobId, pyFile, tmpDir);
+    const allErrors: string[] = [];
+    let retryCount = 0;
 
-      child.stdout.on('data', (data) => {
-        const text = data.toString();
-        console.log(`[Worker][${jobId}] STDOUT: ${text.trim()}`);
-      });
+    // ── Auto-retry loop ──────────────────────────────────────────────────────
+    while (
+      !renderResult.success &&
+      renderResult.pythonError &&
+      retryCount < MAX_RETRIES
+    ) {
+      // Skip retry if manim itself is missing — no code fix can help
+      if (renderResult.pythonError.includes('No module named manim')) {
+        console.log(`[Worker][${jobId}] ❌ Manim is not installed — cannot retry.`);
+        break;
+      }
 
-      child.stderr.on('data', (data) => {
-        const text = data.toString();
-        // Console error might be too noisy for standard Manim progress, but keeping it
-        // logged ensures we capture all debug info.
-        console.error(`[Worker][${jobId}] STDERR: ${text.trim()}`);
-      });
+      retryCount++;
+      allErrors.push(renderResult.pythonError);
 
-      child.on('close', (code) => {
-        console.log(`[Worker][${jobId}] Manim process exited with code ${code}`);
-        if (code === 0) {
-          resolve();
-        } else {
-          // Sometimes Manim returns non-zero even if video is generated, but strictly we should error
-          reject(new Error(`Manim render failed with code ${code}.`));
+      console.log(`[Worker][${jobId}] ⚠ Render attempt ${retryCount} failed: ${renderResult.pythonError}`);
+      console.log(`[Worker][${jobId}] 🔄 Auto-retry ${retryCount}/${MAX_RETRIES}...`);
+
+      await updateJob(jobId, { status: 'generating_code' });
+
+      const retryPrompt = buildRetryPrompt(
+        generatedCode,
+        renderResult.pythonError,
+        allErrors.slice(0, -1), // all previous errors excluding the current one
+        retryCount
+      );
+
+      try {
+        const retryResponse = await aiService.generateText({
+          prompt: retryPrompt,
+          provider,
+          model,
+          apiKey: resolvedKey,
+          systemPrompt: MANIM_SYSTEM_PROMPT,
+          temperature: Math.max(0.1, 0.3 - retryCount * 0.02), // Decrease temp with each retry
+        });
+
+        console.log(`[Worker][${jobId}] Retry ${retryCount} AI response received (${retryResponse.text.length} chars)`);
+
+        const retriedCode = extractPythonCode(retryResponse.text);
+
+        if (!retriedCode || !retriedCode.includes('class GeneratedScene')) {
+          console.log(`[Worker][${jobId}] Retry ${retryCount}: AI did not return valid code, stopping retries.`);
+          break;
         }
-      });
 
-      child.on('error', (spawnErr) => {
-        console.error(`[Worker][${jobId}] Manim process error:`, spawnErr);
-        reject(spawnErr);
-      });
-    });
+        generatedCode = retriedCode;
+        await updateJob(jobId, { status: 'generating_code', generatedCode });
+        console.log(`[Worker][${jobId}] Retry ${retryCount} code saved to DB`);
+
+        // Clean previous temp files and write new code
+        if (fs.existsSync(tmpDir)) {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+        fs.mkdirSync(tmpDir, { recursive: true });
+        fs.writeFileSync(pyFile, generatedCode, 'utf-8');
+
+        await updateJob(jobId, { status: 'rendering' });
+        console.log(`[Worker][${jobId}] 🔄 Retry ${retryCount} render starting...`);
+
+        renderResult = await runManimRender(jobId, pyFile, tmpDir);
+
+        if (renderResult.success) {
+          console.log(`[Worker][${jobId}] ✅ Retry ${retryCount} render succeeded!`);
+        } else {
+          console.log(`[Worker][${jobId}] ❌ Retry ${retryCount} failed: ${renderResult.pythonError || 'unknown error'}`);
+        }
+      } catch (retryErr: any) {
+        console.error(`[Worker][${jobId}] Retry ${retryCount} AI call failed:`, retryErr.message);
+        break; // Stop retrying if AI call itself fails
+      }
+    }
+
+    // ── Check final render result ────────────────────────────────────────────
+    if (!renderResult.success) {
+      const wasRetried = retryCount > 0;
+      const friendlyMessage = makeUserFriendlyError(renderResult.pythonError, wasRetried);
+      throw new Error(friendlyMessage);
+    }
 
     console.log(`[Worker][${jobId}] Manim execution completed successfully.`);
 
@@ -196,8 +445,15 @@ export async function processAnimationJob(
     const errorMessage = err?.message || 'Unknown error during animation pipeline';
     console.error(`[Worker][${jobId}] FAILED:`, errorMessage);
 
+    // If the error is already user-friendly (from makeUserFriendlyError), use it directly.
+    // Otherwise, wrap it in a generic user-friendly message.
+    const isAlreadyFriendly = errorMessage.startsWith("We couldn't render");
+    const userMessage = isAlreadyFriendly
+      ? errorMessage
+      : `Something went wrong while creating your animation. Please try again with a different prompt.`;
+
     try {
-      await updateJob(jobId, { status: 'failed', errorMessage });
+      await updateJob(jobId, { status: 'failed', errorMessage: userMessage });
     } catch (dbErr: any) {
       console.error(`[Worker][${jobId}] Could not save failure to DB:`, dbErr.message);
     }
