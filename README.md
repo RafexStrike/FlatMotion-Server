@@ -8,9 +8,9 @@ FlatMotion Server is a robust Node.js and Express.js application that powers the
 
 ## Live Links
 
-- Backend API: https://your-backend-url.onrender.com
-- API Documentation: https://your-backend-url.onrender.com/api/docs
-- Frontend: https://your-frontend-url.vercel.app
+- Live Demo  : https://flat-motion.vercel.app
+- Frontend   : https://flat-motion.vercel.app
+- Backend    : https://flatmotion-server.onrender.com
 
 ## Features
 
