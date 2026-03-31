@@ -4,6 +4,7 @@ import {
   generateAnimation,
   getJob,
   getProjectJobs,
+  getUserJobs,
   regenerateAnimation,
   deleteAnimation,
 } from './animation.controller';
@@ -21,6 +22,10 @@ animationRouter.post('/generate', validateGenerateRequest, generateAnimation);
 // GET /api/animations/project/:projectId — List all jobs for a project
 // NOTE: Must be ABOVE /:jobId to prevent "project" being parsed as a jobId
 animationRouter.get('/project/:projectId', validateProjectIdParam, getProjectJobs);
+
+// GET /api/animations/user/:userId — List all jobs for a user
+// NOTE: Must be ABOVE /:jobId to prevent "user" being parsed as a jobId
+animationRouter.get('/user/:userId', getUserJobs);
 
 // GET /api/animations/:jobId — Get a single job by ID
 animationRouter.get('/:jobId', validateJobIdParam, getJob);

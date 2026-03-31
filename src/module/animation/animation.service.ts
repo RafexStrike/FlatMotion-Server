@@ -77,6 +77,18 @@ export const getJobsByProject = async (projectId: string): Promise<AnimationJobD
 };
 
 /**
+ * Lists all jobs for a given user across all projects, newest first.
+ */
+export const getJobsByUser = async (userId: string): Promise<AnimationJobData[]> => {
+  console.log(`[AnimationService] Listing jobs for user: ${userId}`);
+  const jobs = await prisma.animationJob.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+  });
+  return jobs.map(mapStatus);
+};
+
+/**
  * Updates job fields (status + any other fields).
  */
 export const updateJob = async (

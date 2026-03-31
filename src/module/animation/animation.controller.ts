@@ -4,6 +4,7 @@ import {
   createJob,
   getJobById,
   getJobsByProject,
+  getJobsByUser,
   regenerateJob,
   deleteJob,
 } from './animation.service';
@@ -92,6 +93,30 @@ export const getProjectJobs = async (req: Request, res: Response): Promise<any> 
     return res.status(500).json({
       success: false,
       message: err.message || 'Failed to list project jobs.',
+      data: null,
+    });
+  }
+};
+
+// ─── GET /animations/user/:userId ──────────────────────────────────────────
+
+export const getUserJobs = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId } = req.params;
+    console.log(`[AnimationController] Listing jobs for user: ${userId}`);
+
+    const jobs = await getJobsByUser(userId);
+
+    return res.status(200).json({
+      success: true,
+      message: `Found ${jobs.length} job(s) for user ${userId}.`,
+      data: jobs,
+    });
+  } catch (err: any) {
+    console.error('[AnimationController] getUserJobs error:', err.message);
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to list user jobs.',
       data: null,
     });
   }
