@@ -80,6 +80,16 @@ export const initDonation = async (data: InitDonationRequest): Promise<{ gateway
   };
 
   // Call SSLCommerz API
+  if (!config.sslcStoreId || !config.sslcStorePass) {
+    console.error('[PaymentService] SSLCommerz credentials missing:', {
+      storeId: config.sslcStoreId ? 'SET' : 'MISSING',
+      storePass: config.sslcStorePass ? 'SET' : 'MISSING',
+      isLive: config.sslcIsLive,
+      nodeEnv: process.env.NODE_ENV,
+    });
+    throw new Error('SSLCommerz credentials not configured. Please set SSLC_STORE_ID and SSLC_STORE_PASS environment variables.');
+  }
+
   const sslcz = new SSLCommerzPayment(config.sslcStoreId, config.sslcStorePass, config.sslcIsLive);
   const apiResponse = await sslcz.init(paymentData);
 
