@@ -25,9 +25,14 @@ export const initDonation = async (data: InitDonationRequest): Promise<{ gateway
   console.log(`[PaymentService] Initiating donation: tranId=${tranId}, amount=${data.amount}, email=${data.email}`);
 
   // Determine callback base URL (the server itself handles callbacks)
-  const serverBase = process.env.NODE_ENV === 'production'
-    ? (process.env.BETTER_AUTH_URL?.split(',').find(u => u.includes('render')) || `http://localhost:${config.port}`)
-    : `http://localhost:${config.port}`;
+  let serverBase: string;
+  if (process.env.NODE_ENV === 'production') {
+    // In production, use the first non-localhost URL from BETTER_AUTH_URL
+    const urls = process.env.BETTER_AUTH_URL?.split(',').map(u => u.trim()) || [];
+    serverBase = urls.find(u => !u.includes('localhost')) || 'https://flatmotion-server.onrender.com';
+  } else {
+    serverBase = `http://localhost:${config.port}`;
+  }
 
   // Determine the client origin for redirects after callback
   const clientOrigin = (process.env.TRUSTED_CLIENT_ORIGIN?.split(',')[0] || 'http://localhost:3000').trim();
