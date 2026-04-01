@@ -32,7 +32,16 @@ export const initDonation = async (data: InitDonationRequest): Promise<{ gateway
   console.log(`[PaymentService] Using serverBase for callbacks: ${serverBase}`);
 
   // Determine the client origin for redirects after callback
-  const clientOrigin = (process.env.TRUSTED_CLIENT_ORIGIN?.split(',')[0] || 'http://localhost:3000').trim();
+  // Match the serverBase: if production URL, use production client origin; else use localhost
+  const clientOrigins = process.env.TRUSTED_CLIENT_ORIGIN?.split(',').map(u => u.trim()) || [];
+  let clientOrigin: string;
+  if (productionUrl) {
+    // In production, find a non-localhost client origin
+    clientOrigin = clientOrigins.find(u => !u.includes('localhost')) || 'https://flat-motion.vercel.app';
+  } else {
+    // In local development, use localhost client origin
+    clientOrigin = clientOrigins.find(u => u.includes('localhost')) || 'http://localhost:3000';
+  }
   console.log(`[PaymentService] Using clientOrigin for redirect: ${clientOrigin}`);
 
   // Save pending donation record in DB
