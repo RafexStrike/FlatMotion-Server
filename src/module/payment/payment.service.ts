@@ -25,17 +25,15 @@ export const initDonation = async (data: InitDonationRequest): Promise<{ gateway
   console.log(`[PaymentService] Initiating donation: tranId=${tranId}, amount=${data.amount}, email=${data.email}`);
 
   // Determine callback base URL (the server itself handles callbacks)
-  let serverBase: string;
-  if (process.env.NODE_ENV === 'production') {
-    // In production, use the first non-localhost URL from BETTER_AUTH_URL
-    const urls = process.env.BETTER_AUTH_URL?.split(',').map(u => u.trim()) || [];
-    serverBase = urls.find(u => !u.includes('localhost')) || 'https://flatmotion-server.onrender.com';
-  } else {
-    serverBase = `http://localhost:${config.port}`;
-  }
+  // Use the production URL from BETTER_AUTH_URL if available, otherwise fallback to localhost
+  const authUrls = process.env.BETTER_AUTH_URL?.split(',').map(u => u.trim()) || [];
+  const productionUrl = authUrls.find(u => !u.includes('localhost'));
+  const serverBase = productionUrl || `http://localhost:${config.port}`;
+  console.log(`[PaymentService] Using serverBase for callbacks: ${serverBase}`);
 
   // Determine the client origin for redirects after callback
   const clientOrigin = (process.env.TRUSTED_CLIENT_ORIGIN?.split(',')[0] || 'http://localhost:3000').trim();
+  console.log(`[PaymentService] Using clientOrigin for redirect: ${clientOrigin}`);
 
   // Save pending donation record in DB
   const donation = await prisma.donation.create({
