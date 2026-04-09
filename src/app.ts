@@ -9,6 +9,9 @@ import notFoundHandler from './errorHelpers/notFound';
 
 const app: Express = express();
 
+// Trust proxy (important for Render/Vercel deployments)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -24,24 +27,28 @@ app.use((req, res, next) => {
     console.log(`[Auth Debug] Referer: ${req.headers.referer}`);
     console.log(`[Auth Debug] Cookies in request:`, req.headers.cookie || 'NONE');
     console.log(`[Auth Debug] NODE_ENV:`, process.env.NODE_ENV);
+    console.log(`[Auth Debug] BETTER_AUTH_URL:`, process.env.BETTER_AUTH_URL);
 
-    const originalSend = res.send;
-    res.send = function (body) {
+    const originalJson = res.json;
+    const originalEnd = res.end;
+
+    res.json = function (body) {
+      logResponse();
+      return originalJson.apply(res, arguments as any);
+    };
+
+    res.end = function () {
+      logResponse();
+      return originalEnd.apply(res, arguments as any);
+    };
+
+    function logResponse() {
       const setCookieHeaders = res.getHeader('Set-Cookie');
       console.log(`[Auth Debug] Response status: ${res.statusCode}`);
       console.log(`[Auth Debug] Set-Cookie header:`, setCookieHeaders || 'NONE');
-      if (body) {
-        try {
-          const parsed = typeof body === 'string' ? JSON.parse(body) : body;
-          console.log(`[Auth Debug] Response body:`, JSON.stringify(parsed).substring(0, 200));
-        } catch (e) {
-          console.log(`[Auth Debug] Response body (raw):`, body.toString().substring(0, 200));
-        }
-      }
       console.log(`[Auth Debug] CORS Allow-Origin:`, res.getHeader('Access-Control-Allow-Origin'));
       console.log(`[Auth Debug] CORS Allow-Credentials:`, res.getHeader('Access-Control-Allow-Credentials'));
-      return originalSend.apply(res, arguments as any);
-    };
+    }
   }
   next();
 });

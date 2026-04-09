@@ -20,6 +20,15 @@ if (authUrls.length === 0) {
 const baseURL =
   authUrls.find(url => !url.includes("localhost")) || authUrls[0];
 
+// Determine correct SameSite value based on environment
+const isSameSiteNone = baseURL.startsWith("https");
+
+console.log(`[Auth Config] baseURL: ${baseURL}`);
+console.log(`[Auth Config] isSameSiteNone: ${isSameSiteNone}`);
+console.log(`[Auth Config] Cookie Secure: ${isSameSiteNone}`);
+console.log(`[Auth Config] Cookie SameSite: ${isSameSiteNone ? "none" : "lax"}`);
+console.log(`[Auth Config] trustedOrigins: ${trustedOrigins.join(", ")}`);
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -36,6 +45,7 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL,
   basePath: "/api/auth",
+  appName: "FlatMotion",
 
   emailAndPassword: {
     enabled: true,
@@ -45,6 +55,7 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      allowDangerousEmailAccountLinking: true,
     },
   },
 
@@ -53,26 +64,9 @@ export const auth = betterAuth({
     sessionToken: {
       attributes: {
         httpOnly: true,
-        secure: true,
-        sameSite: "none",
-      },
-    },
-    // Configure OAuth state cookie explicitly
-    state: {
-      attributes: {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        maxAge: 60 * 10,
-      },
-    },
-    // Configure PKCE code verifier cookie
-    pkceCodeVerifier: {
-      attributes: {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        maxAge: 60 * 10,
+        secure: isSameSiteNone, // true only for HTTPS (production)
+        sameSite: isSameSiteNone ? "none" : "lax", // "none" for cross-site OAuth redirects (production), "lax" for development
+        path: "/",
       },
     },
   },
