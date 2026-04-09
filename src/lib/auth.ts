@@ -9,11 +9,16 @@ if (trustedOrigins.length === 0) {
   throw new Error("TRUSTED_CLIENT_ORIGIN is not set");
 }
 
-const baseURL = process.env.BETTER_AUTH_URL?.split(",")[0].trim() || "";
+const authUrls = process.env.BETTER_AUTH_URL?.split(",").map(u => u.trim()) || [];
 
-if (!baseURL) {
+if (authUrls.length === 0) {
   throw new Error("BETTER_AUTH_URL is not set or invalid");
 }
+
+// If there's a production URL (non-localhost), use it. Otherwise use first URL.
+// This allows using both localhost and production URLs in the same env var
+const baseURL =
+  authUrls.find(url => !url.includes("localhost")) || authUrls[0];
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
