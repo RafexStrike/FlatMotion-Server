@@ -82,6 +82,16 @@ model verification {
   @@unique([identifier, value])
 }
 
+// OAuth State - For storing temporary OAuth state during provider redirects
+model oauthState {
+  id        String   @id @default(cuid())
+  state     String   @unique
+  provider  String   // "google", "github", etc
+  expiresAt DateTime // Delete after expiry
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Project Model - User's animation projects
 model project {
   id          String         @id @default(cuid())

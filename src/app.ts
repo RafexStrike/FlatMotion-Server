@@ -20,35 +20,10 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   if (req.url.includes('/api/auth')) {
-    console.log(`[Auth Debug] ${req.method} ${req.url}`);
-    console.log(`[Auth Debug] Origin: ${req.headers.origin}`);
-    console.log(`[Auth Debug] Referer: ${req.headers.referer}`);
-    console.log(`[Auth Debug] Cookies in request:`, req.headers.cookie || 'NONE');
-    console.log(`[Auth Debug] NODE_ENV:`, process.env.NODE_ENV);
-    console.log(`[Auth Debug] BETTER_AUTH_URL:`, process.env.BETTER_AUTH_URL);
-
-    const originalJson = res.json;
-    const originalEnd = res.end;
-
-    res.json = function (_body) {
-      logResponse();
-      return originalJson.apply(res, arguments as any);
-    };
-
-    res.end = function () {
-      logResponse();
-      return originalEnd.apply(res, arguments as any);
-    };
-
-    function logResponse() {
-      const setCookieHeaders = res.getHeader('Set-Cookie');
-      console.log(`[Auth Debug] Response status: ${res.statusCode}`);
-      console.log(`[Auth Debug] Set-Cookie header:`, setCookieHeaders || 'NONE');
-      console.log(`[Auth Debug] CORS Allow-Origin:`, res.getHeader('Access-Control-Allow-Origin'));
-      console.log(`[Auth Debug] CORS Allow-Credentials:`, res.getHeader('Access-Control-Allow-Credentials'));
-    }
+    console.log(`[OAuth] ${req.method} ${req.url}`);
+    console.log(`[OAuth] Origin: ${req.headers.origin}, Cookies: ${req.headers.cookie || 'NONE'}`);
   }
   next();
 });
