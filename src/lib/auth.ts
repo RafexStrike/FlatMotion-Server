@@ -20,10 +20,14 @@ if (authUrls.length === 0) {
 const baseURL =
   authUrls.find(url => !url.includes("localhost")) || authUrls[0];
 
+const primaryClientOrigin =
+  trustedOrigins.find(url => !url.includes("localhost")) || trustedOrigins[0];
+
 // Determine correct SameSite value based on environment
 const isSameSiteNone = baseURL.startsWith("https");
 
 console.log(`[Auth Config] baseURL: ${baseURL}`);
+console.log(`[Auth Config] primaryClientOrigin: ${primaryClientOrigin}`);
 console.log(`[Auth Config] isSameSiteNone: ${isSameSiteNone}`);
 console.log(`[Auth Config] Cookie Secure: ${isSameSiteNone}`);
 console.log(`[Auth Config] Cookie SameSite: ${isSameSiteNone ? "none" : "lax"}`);
@@ -46,6 +50,9 @@ export const auth = betterAuth({
   baseURL,
   basePath: "/api/auth",
   appName: "FlatMotion",
+  onAPIError: {
+    errorURL: `${primaryClientOrigin}/login`,
+  },
 
   emailAndPassword: {
     enabled: true,
@@ -56,22 +63,19 @@ export const auth = betterAuth({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       allowDangerousEmailAccountLinking: true,
-      // Disable state validation since we're in a proxy environment
-      // This is not ideal for production but necessary for Render compatibility
-      // Better-auth can't reliably store cookies through the Google redirect
     },
   },
 
   trustedOrigins,
-  cookies: {
-    sessionToken: {
-      attributes: {
-        httpOnly: true,
-        secure: isSameSiteNone,
-        sameSite: "lax", // Use lax for better cross-site compatibility in proxy environments
-        path: "/",
-      },
-    },
+  defaultCookieAttributes: {
+    httpOnly: true,
+    secure: isSameSiteNone,
+    sameSite: isSameSiteNone ? "none" : "lax",
+    path: "/",
+  },
+  oauth2: {
+    storeStateStrategy: "database",
+    skipStateCookieCheck: true,
   },
   plugins: [
     bearer(),
