@@ -19,20 +19,27 @@ app.use(cors({
 
 app.use((req, res, next) => {
   if (req.url.includes('/api/auth')) {
-    console.log(`[Backend Debug] ${req.method} ${req.url}`);
-    console.log(`[Backend Debug] Origin: ${req.headers.origin}`);
-    console.log(`[Backend Debug] Referer: ${req.headers.referer}`);
-    console.log(`[Backend Debug] Cookies Received:`, req.headers.cookie);
-    console.log(`[Backend Debug] NODE_ENV:`, process.env.NODE_ENV);
+    console.log(`[Auth Debug] ${req.method} ${req.url}`);
+    console.log(`[Auth Debug] Origin: ${req.headers.origin}`);
+    console.log(`[Auth Debug] Referer: ${req.headers.referer}`);
+    console.log(`[Auth Debug] Cookies in request:`, req.headers.cookie || 'NONE');
+    console.log(`[Auth Debug] NODE_ENV:`, process.env.NODE_ENV);
 
     const originalSend = res.send;
-    res.send = function (_body) {
-      console.log(`[Backend Debug] Response for ${req.url}:`, {
-        status: res.statusCode,
-        setCookie: res.get('Set-Cookie'),
-        allowOrigin: res.get('Access-Control-Allow-Origin'),
-        allowCredentials: res.get('Access-Control-Allow-Credentials')
-      });
+    res.send = function (body) {
+      const setCookieHeaders = res.getHeader('Set-Cookie');
+      console.log(`[Auth Debug] Response status: ${res.statusCode}`);
+      console.log(`[Auth Debug] Set-Cookie header:`, setCookieHeaders || 'NONE');
+      if (body) {
+        try {
+          const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+          console.log(`[Auth Debug] Response body:`, JSON.stringify(parsed).substring(0, 200));
+        } catch (e) {
+          console.log(`[Auth Debug] Response body (raw):`, body.toString().substring(0, 200));
+        }
+      }
+      console.log(`[Auth Debug] CORS Allow-Origin:`, res.getHeader('Access-Control-Allow-Origin'));
+      console.log(`[Auth Debug] CORS Allow-Credentials:`, res.getHeader('Access-Control-Allow-Credentials'));
       return originalSend.apply(res, arguments as any);
     };
   }

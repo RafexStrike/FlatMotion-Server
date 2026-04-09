@@ -53,8 +53,26 @@ export const auth = betterAuth({
     sessionToken: {
       attributes: {
         httpOnly: true,
-        secure: true, // Must be true for sameSite: none
-        sameSite: "none", // Allow cross-site OAuth redirects from Google
+        secure: true,
+        sameSite: "none",
+      },
+    },
+    // Configure OAuth state cookie explicitly
+    state: {
+      attributes: {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 60 * 10,
+      },
+    },
+    // Configure PKCE code verifier cookie
+    pkceCodeVerifier: {
+      attributes: {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 60 * 10,
       },
     },
   },
@@ -70,10 +88,5 @@ export const auth = betterAuth({
   },
   onSessionDeleted: async (session: any) => {
     console.log("[Better-Auth Hook] Session Deleted:", session.session?.id || session.id);
-  },
-  // Redirect successful OAuth back to frontend dashboard
-  redirects: {
-    afterSignIn: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/dashboard` : undefined,
-    afterSignUp: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/dashboard` : undefined,
   },
 });
