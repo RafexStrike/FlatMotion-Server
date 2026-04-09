@@ -53,8 +53,9 @@ export const auth = betterAuth({
     sessionToken: {
       attributes: {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production", // Only true in production
-        sameSite: "lax", // Use lax for better compatibility
+        // Check if running on HTTPS (Render always uses HTTPS, even in dev)
+        secure: baseURL.startsWith("https"),
+        sameSite: "lax",
       },
     },
   },

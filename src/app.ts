@@ -21,8 +21,10 @@ app.use((req, res, next) => {
   if (req.url.includes('/api/auth')) {
     console.log(`[Backend Debug] ${req.method} ${req.url}`);
     console.log(`[Backend Debug] Origin: ${req.headers.origin}`);
+    console.log(`[Backend Debug] Referer: ${req.headers.referer}`);
     console.log(`[Backend Debug] Cookies Received:`, req.headers.cookie);
-    
+    console.log(`[Backend Debug] NODE_ENV:`, process.env.NODE_ENV);
+
     const originalSend = res.send;
     res.send = function (_body) {
       console.log(`[Backend Debug] Response for ${req.url}:`, {
