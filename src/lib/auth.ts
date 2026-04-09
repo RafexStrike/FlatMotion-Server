@@ -67,13 +67,14 @@ export const auth = betterAuth({
   },
 
   trustedOrigins,
-  defaultCookieAttributes: {
-    httpOnly: true,
-    secure: isSameSiteNone,
-    sameSite: isSameSiteNone ? "none" : "lax",
-    path: "/",
-  },
-  oauth2: {
+  advanced: {
+    useSecureCookies: isSameSiteNone,
+    defaultCookieAttributes: {
+      httpOnly: true,
+      secure: isSameSiteNone,
+      sameSite: isSameSiteNone ? "none" : "lax",
+      path: "/",
+    },
     storeStateStrategy: "database",
     skipStateCookieCheck: true,
   },
