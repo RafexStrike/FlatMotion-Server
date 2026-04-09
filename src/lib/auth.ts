@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
-import { bearer } from "better-auth/plugins";
+import { bearer, oAuthProxy } from "better-auth/plugins";
 
 const trustedOrigins = process.env.TRUSTED_CLIENT_ORIGIN?.split(",") || [];
 
@@ -75,10 +75,14 @@ export const auth = betterAuth({
       sameSite: isSameSiteNone ? "none" : "lax",
       path: "/",
     },
-    storeStateStrategy: "database",
-    skipStateCookieCheck: true,
+    storeStateStrategy: "cookie",
   },
   plugins: [
+    oAuthProxy({
+      currentURL: primaryClientOrigin,
+      productionURL: baseURL,
+      maxAge: 300,
+    }),
     bearer(),
   ],
   onSessionCreated: async (session: any) => {
