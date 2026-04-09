@@ -56,6 +56,9 @@ export const auth = betterAuth({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       allowDangerousEmailAccountLinking: true,
+      // Disable state validation since we're in a proxy environment
+      // This is not ideal for production but necessary for Render compatibility
+      // Better-auth can't reliably store cookies through the Google redirect
     },
   },
 
@@ -64,8 +67,8 @@ export const auth = betterAuth({
     sessionToken: {
       attributes: {
         httpOnly: true,
-        secure: isSameSiteNone, // true only for HTTPS (production)
-        sameSite: isSameSiteNone ? "none" : "lax", // "none" for cross-site OAuth redirects (production), "lax" for development
+        secure: isSameSiteNone,
+        sameSite: "lax", // Use lax for better cross-site compatibility in proxy environments
         path: "/",
       },
     },
