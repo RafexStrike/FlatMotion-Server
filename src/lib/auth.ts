@@ -48,8 +48,8 @@ export const auth = betterAuth({
     sessionToken: {
       attributes: {
         httpOnly: true,
-        secure: true,       // REQUIRED for cross-site
-        sameSite: "none",   // REQUIRED for cross-site
+        secure: process.env.NODE_ENV === "production", // Only true in production
+        sameSite: "lax", // Use lax for better compatibility
       },
     },
   },
