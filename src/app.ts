@@ -32,7 +32,7 @@ app.use((req, res, next) => {
     const originalJson = res.json;
     const originalEnd = res.end;
 
-    res.json = function (body) {
+    res.json = function (_body) {
       logResponse();
       return originalJson.apply(res, arguments as any);
     };
