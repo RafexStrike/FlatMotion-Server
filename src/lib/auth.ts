@@ -53,9 +53,8 @@ export const auth = betterAuth({
     sessionToken: {
       attributes: {
         httpOnly: true,
-        // Check if running on HTTPS (Render always uses HTTPS, even in dev)
-        secure: baseURL.startsWith("https"),
-        sameSite: "lax",
+        secure: true, // Must be true for sameSite: none
+        sameSite: "none", // Allow cross-site OAuth redirects from Google
       },
     },
   },
@@ -71,5 +70,10 @@ export const auth = betterAuth({
   },
   onSessionDeleted: async (session: any) => {
     console.log("[Better-Auth Hook] Session Deleted:", session.session?.id || session.id);
+  },
+  // Redirect successful OAuth back to frontend dashboard
+  redirects: {
+    afterSignIn: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/dashboard` : undefined,
+    afterSignUp: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/dashboard` : undefined,
   },
 });
