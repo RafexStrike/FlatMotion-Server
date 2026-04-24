@@ -2,6 +2,7 @@
 import { prisma } from '../../lib/prisma';
 import { deleteVideo } from '../../lib/cloudinary';
 import { AnimationJobData, AnimationStatus, WorkerUpdateFields } from './animation.interface';
+import { filterExpiredAnimations, isDemoUser } from './animation.cleanup';
 
 /** How long (in days) before a rendered video expires */
 const VIDEO_EXPIRY_DAYS = 7;
@@ -65,6 +66,22 @@ export const getJobById = async (jobId: string): Promise<AnimationJobData | null
 };
 
 /**
+ * Lists all jobs for a given user across all projects, newest first.
+ * Filters out expired animations for non-demo users.
+ */
+export const getJobsByUser = async (userId: string): Promise<AnimationJobData[]> => {
+  console.log(`[AnimationService] Listing jobs for user: ${userId}`);
+  const jobs = await prisma.animationJob.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+  });
+  const mapped = jobs.map(mapStatus);
+  
+  // Filter out expired videos for non-demo users
+  return filterExpiredAnimations(mapped, userId);
+};
+
+/**
  * Lists all jobs for a given project, newest first.
  */
 export const getJobsByProject = async (projectId: string): Promise<AnimationJobData[]> => {
@@ -77,15 +94,22 @@ export const getJobsByProject = async (projectId: string): Promise<AnimationJobD
 };
 
 /**
- * Lists all jobs for a given user across all projects, newest first.
+ * Lists all jobs for a given project for a specific user, with filtering.
+ * Filters out expired animations for non-demo users.
  */
-export const getJobsByUser = async (userId: string): Promise<AnimationJobData[]> => {
-  console.log(`[AnimationService] Listing jobs for user: ${userId}`);
+export const getJobsByProjectForUser = async (
+  projectId: string,
+  userId: string
+): Promise<AnimationJobData[]> => {
+  console.log(`[AnimationService] Listing jobs for project: ${projectId} (user: ${userId})`);
   const jobs = await prisma.animationJob.findMany({
-    where: { userId },
+    where: { projectId },
     orderBy: { createdAt: 'desc' },
   });
-  return jobs.map(mapStatus);
+  const mapped = jobs.map(mapStatus);
+  
+  // Filter out expired videos for non-demo users
+  return filterExpiredAnimations(mapped, userId);
 };
 
 /**

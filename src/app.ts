@@ -6,6 +6,7 @@ import { auth } from './lib/auth';
 import routes from './routes';
 import globalErrorHandler from './errorHelpers/globalErrorHandler';
 import notFoundHandler from './errorHelpers/notFound';
+import { startCleanupScheduler } from './module/animation/animation.scheduler';
 
 const app: Express = express();
 
@@ -33,6 +34,9 @@ app.use("/api/auth", toNodeHandler(auth));
 
 // Routes
 app.use('/api', routes);
+
+// Start animation cleanup scheduler
+startCleanupScheduler();
 
 // 404 Handler
 app.use(notFoundHandler);
