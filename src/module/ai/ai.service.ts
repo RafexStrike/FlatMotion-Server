@@ -1,5 +1,5 @@
 import { providerRegistry } from './registry/providerRegistry';
-import { HuggingFaceProvider } from './providers/huggingface.provider';
+// import { HuggingFaceProvider } from './providers/huggingface.provider';
 import { GeminiProvider } from './providers/gemini.provider';
 import { GroqProvider } from './providers/groq.provider';
 import { OpenRouterProvider } from './providers/openrouter.provider';
@@ -8,7 +8,8 @@ import { GenerateTextRequest, GenerateTextResponse } from './ai.interface';
 import { MODEL_CATALOG, SUPPORTED_PROVIDERS } from './constants';
 
 // Register all providers
-providerRegistry.register(new HuggingFaceProvider());
+// COMMENTED OUT: Hugging Face as default (2026-04-27)
+// providerRegistry.register(new HuggingFaceProvider());
 providerRegistry.register(new GeminiProvider());
 providerRegistry.register(new GroqProvider());
 providerRegistry.register(new OpenRouterProvider());

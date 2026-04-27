@@ -6,16 +6,18 @@ export interface ModelOption {
 }
 
 export const MODEL_CATALOG: Record<string, ModelOption[]> = {
-  huggingface: [
-    {
-      id: 'mistralai/Mistral-7B-Instruct-v0.2:featherless-ai',
-      label: 'Mistral 7B Instruct v0.2',
-    },
-    {
-      id: 'meta-llama/Meta-Llama-3-8B-Instruct',
-      label: 'Meta LLaMA 3 8B Instruct',
-    },
-  ],
+  // COMMENTED OUT: Hugging Face as default provider (2026-04-27)
+  // Now Gemini is the default selected provider on dashboard load
+  // huggingface: [
+  //   {
+  //     id: 'mistralai/Mistral-7B-Instruct-v0.2:featherless-ai',
+  //     label: 'Mistral 7B Instruct v0.2',
+  //   },
+  //   {
+  //     id: 'meta-llama/Meta-Llama-3-8B-Instruct',
+  //     label: 'Meta LLaMA 3 8B Instruct',
+  //   },
+  // ],
 
   gemini: [
     // { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
